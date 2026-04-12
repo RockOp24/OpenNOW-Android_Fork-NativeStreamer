@@ -51,6 +51,8 @@ export interface Settings {
   windowHeight: number;
   // Touch gamepad layout customization (JSON string of per-element offsets)
   touchGamepadLayout: string;
+  // Use native MediaCodec + WebRTC streamer instead of WebView (Android only)
+  useNativeStreamer: boolean;
 }
 
 export interface LoginProvider {
@@ -331,6 +333,12 @@ export interface OpenNowApi {
   onToggleFullscreen(listener: () => void): () => void;
   toggleFullscreen(): Promise<void>;
   togglePointerLock(): Promise<void>;
+  /** (Android Only) Control the native MediaCodec + WebRTC layer */
+  setNativeStreamerActive(active: boolean): Promise<void>;
+  initializeNativeStreamer(): Promise<void>;
+  startNativeStreamer(sdp: string, iceServers: IceServer[]): Promise<void>;
+  addNativeIceCandidate(candidate: IceCandidatePayload): Promise<void>;
+  stopNativeStreamer(): Promise<void>;
   getSettings(): Promise<Settings>;
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
   resetSettings(): Promise<Settings>;

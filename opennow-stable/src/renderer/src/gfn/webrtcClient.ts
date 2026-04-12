@@ -32,6 +32,7 @@ import {
 } from "./sdp";
 import { MicrophoneManager, type MicState, type MicStateChange } from "./microphoneManager";
 import { getPlatformApi } from "../platform/index";
+import { getPlatform } from "../platform/detect";
 
 interface OfferSettings {
   codec: VideoCodec;
@@ -2418,6 +2419,59 @@ export class GfnWebRtcClient {
   }
 
   async handleOffer(offerSdp: string, session: SessionInfo, settings: OfferSettings): Promise<void> {
+    const appSettings = await getPlatformApi().getSettings();
+    const useNative = appSettings.useNativeStreamer && getPlatform() === "capacitor";
+
+    if (useNative) {
+      this.log("=== NATIVE handleOffer START ===");
+      this.cleanupPeerConnection();
+      this.resetInputState();
+      this.resetDiagnostics();
+
+      try {
+        await getPlatformApi().initializeNativeStreamer();
+        
+        // Listen for native events (Answer/ICE)
+        const signalingApi = getPlatformApi();
+        const sendFn = (window as any).openNow?.sendIceCandidate ?? signalingApi.sendIceCandidate.bind(signalingApi);
+        const sendAnswerFn = (window as any).openNow?.sendAnswer ?? signalingApi.sendAnswer.bind(signalingApi);
+
+        // Add listeners for native bridge events
+        // Note: These are fired via notifyListeners in Kotlin
+        const onNativeAnswer = async (e: any) => {
+          const sdp = e.detail?.sdp;
+          if (sdp) {
+            this.log("Native Answer received, sending to server...");
+            const munged = mungeAnswerSdp(sdp, settings.codec, settings.colorQuality);
+            const nvstSdp = buildNvstSdp(offerSdp, munged, settings.codec, settings.colorQuality, settings.resolution, settings.fps, settings.maxBitrateKbps);
+            await sendAnswerFn(munged, nvstSdp);
+          }
+        };
+
+        const onNativeIce = async (e: any) => {
+          const cand = e.detail;
+          if (cand?.candidate) {
+            await sendFn(cand);
+          }
+        };
+
+        (window as any).addEventListener("onAnswerCreated", onNativeAnswer);
+        (window as any).addEventListener("onLocalIceCandidate", onNativeIce);
+        
+        this.inputCleanup.push(() => {
+          (window as any).removeEventListener("onAnswerCreated", onNativeAnswer);
+          (window as any).removeEventListener("onLocalIceCandidate", onNativeIce);
+          void getPlatformApi().stopNativeStreamer();
+        });
+
+        await getPlatformApi().startNativeStreamer(offerSdp, session.iceServers);
+        this.log("Native streamer started successfully");
+        return;
+      } catch (err) {
+        this.log(`Critical Error: Native streamer failed to start: ${String(err)}. Falling back to browser.`);
+      }
+    }
+
     this.cleanupPeerConnection();
 
     this.log("=== handleOffer START ===");
@@ -2474,6 +2528,13 @@ export class GfnWebRtcClient {
     this.setupStatsPolling();
 
     pc.onicecandidate = (event) => {
+      // ... (existing logic)
+    };
+    
+    // In GfnPlugin.kt we use notifyListeners("onLocalIceCandidate", ...) 
+    // Capacitor's notifyListeners sends an event to the window.
+    // ... logic handled above in handleOffer if useNative is true.
+
       if (!event.candidate) {
         this.log("ICE gathering complete (null candidate)");
         return;

@@ -1428,6 +1428,39 @@ export function SettingsPage({ settings, regions, onSettingChange, user, subscri
             </div>
           </div>
         </section>
+        
+        {/* ── Experimental (Android Only) ─────────────── */}
+        <section className="settings-section">
+          <div className="settings-section-header">
+            <h2>Experimental</h2>
+          </div>
+          <div className="settings-rows">
+            <div className="settings-row">
+              <div className="settings-row-label">
+                <label htmlFor="useNativeStreamer">Native Streamer (Beta)</label>
+                <span className="settings-row-desc">
+                  Uses the hardware video decoder (MediaCodec) and native WebRTC library for lower latency.
+                </span>
+              </div>
+              <div className="settings-row-control">
+                <div 
+                  className={`settings-toggle ${settings.useNativeStreamer ? "checked" : ""}`}
+                  id="useNativeStreamer"
+                  role="checkbox"
+                  aria-checked={settings.useNativeStreamer}
+                  tabIndex={0}
+                  onClick={() => handleChange("useNativeStreamer", !settings.useNativeStreamer)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleChange("useNativeStreamer", !settings.useNativeStreamer);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* ── Region ────────────────────────────────────── */}
         <section className="settings-section">

@@ -18,4 +18,10 @@
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# WebRTC ProGuard Rules
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+
+# LiveKit ProGuard Rules
+-keep class io.livekit.** { *; }
+-dontwarn io.livekit.**

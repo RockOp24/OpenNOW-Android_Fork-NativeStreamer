@@ -94,6 +94,8 @@ class GfnPlugin : Plugin() {
     @Volatile private var pendingCodeVerifier: String? = null
     @Volatile private var pendingProviderIdpId: String? = null
     @Volatile private var pendingRedirectPort: Int? = null
+    
+    private var nativeStreamer: GfnNativeStreamer? = null
 
     @ActivityCallback
     private fun onLoginResult(call: PluginCall?, result: ActivityResult) {
@@ -1138,6 +1140,7 @@ class GfnPlugin : Plugin() {
         result.put("windowWidth", 1400)
         result.put("windowHeight", 900)
         result.put("touchGamepadLayout", prefs.getString("touchGamepadLayout", "{}"))
+        result.put("useNativeStreamer", prefs.getBoolean("useNativeStreamer", false))
         call.resolve(result)
     }
 
@@ -1149,7 +1152,7 @@ class GfnPlugin : Plugin() {
         when (key) {
             "fps", "maxBitrateMbps", "sessionClockShowEveryMinutes", "sessionClockShowDurationSeconds" ->
                 prefs.putInt(key, call.getInt("value") ?: 0)
-            "clipboardPaste", "hideStreamButtons" ->
+            "clipboardPaste", "hideStreamButtons", "useNativeStreamer" ->
                 prefs.putBoolean(key, call.getBoolean("value") ?: false)
             "mouseSensitivity" ->
                 prefs.putFloat(key, (call.getFloat("value") ?: 1f))
@@ -1179,6 +1182,80 @@ class GfnPlugin : Plugin() {
         activity.runOnUiThread {
             (activity as? MainActivity)?.applyOrientation(mode)
         }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun setNativeStreamerActive(call: PluginCall) {
+        val active = call.getBoolean("active") ?: false
+        activity.runOnUiThread {
+            (activity as? MainActivity)?.setNativeMode(active)
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun initializeNativeStreamer(call: PluginCall) {
+        activity.runOnUiThread {
+            val mainActivity = activity as? MainActivity ?: run {
+                call.reject("MainActivity not found")
+                return@runOnUiThread
+            }
+            val renderer = mainActivity.getNativeRenderer() ?: run {
+                call.reject("Native renderer not found")
+                return@runOnUiThread
+            }
+            val eglContext = mainActivity.getEglContext() ?: run {
+                call.reject("EGL context not found")
+                return@runOnUiThread
+            }
+
+            nativeStreamer?.stop()
+            nativeStreamer = GfnNativeStreamer(context, renderer, eglContext) { eventName, data ->
+                notifyListeners(eventName, data)
+            }
+            call.resolve()
+        }
+    }
+
+    @PluginMethod
+    fun startNativeStreamer(call: PluginCall) {
+        val sdp = call.getString("sdp") ?: run { call.reject("Missing sdp"); return }
+        val iceServersJson = call.getArray("iceServers") ?: com.getcapacitor.JSArray()
+        
+        val iceServers = mutableListOf<org.webrtc.PeerConnection.IceServer>()
+        for (i in 0 until iceServersJson.length()) {
+            val obj = iceServersJson.getJSONObject(i)
+            val urls = obj.getJSONArray("urls")
+            val urlList = mutableListOf<String>()
+            for (j in 0 until urls.length()) {
+                urlList.add(urls.getString(j))
+            }
+            val builder = org.webrtc.PeerConnection.IceServer.builder(urlList)
+            if (obj.has("username")) builder.setUsername(obj.getString("username"))
+            if (obj.has("credential")) builder.setPassword(obj.getString("credential"))
+            iceServers.add(builder.createIceServer())
+        }
+
+        nativeStreamer?.startWithOffer(sdp, iceServers)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun addNativeIceCandidate(call: PluginCall) {
+        val sdp = call.getString("candidate") ?: run { call.reject("Missing candidate"); return }
+        val sdpMid = call.getString("sdpMid")
+        val sdpMLineIndex = call.getInt("sdpMLineIndex") ?: 0
+        
+        val candidate = org.webrtc.IceCandidate(sdpMid, sdpMLineIndex, sdp)
+        nativeStreamer?.addRemoteIceCandidate(candidate)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun stopNativeStreamer(call: PluginCall) {
+        nativeStreamer?.stop()
+        nativeStreamer = null
         call.resolve()
     }
 

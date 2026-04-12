@@ -82,6 +82,7 @@ const DEFAULT_SETTINGS: Settings = {
   windowWidth: 1400,
   windowHeight: 900,
   touchGamepadLayout: "{}",
+  useNativeStreamer: false,
 };
 
 export class SettingsManager {

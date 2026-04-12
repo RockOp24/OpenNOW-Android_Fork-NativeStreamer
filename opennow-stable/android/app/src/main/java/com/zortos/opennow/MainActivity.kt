@@ -6,12 +6,38 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.core.view.WindowCompat
+import android.view.SurfaceView
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import org.webrtc.EglBase
+import org.webrtc.RendererCommon
+import org.webrtc.SurfaceViewRenderer
 import com.getcapacitor.BridgeActivity
 
 class MainActivity : BridgeActivity() {
+    private var nativeSurface: SurfaceViewRenderer? = null
+    private var eglBase: EglBase? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(GfnPlugin::class.java)
         super.onCreate(savedInstanceState)
+        
+        // Initialize WebRTC EglBase
+        eglBase = EglBase.create()
+        
+        // Initialize Native SurfaceView behind the WebView
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        nativeSurface = SurfaceViewRenderer(this)
+        nativeSurface?.init(eglBase?.eglBaseContext, null)
+        nativeSurface?.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+        nativeSurface?.setEnableHardwareScaler(true)
+        nativeSurface?.visibility = SurfaceView.GONE // Hidden by default
+        
+        root.addView(nativeSurface, 0, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
         // Draw edge-to-edge so the WebView fills under system bars.
         // CSS then uses env(safe-area-inset-*) to avoid overlap.
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -19,6 +45,21 @@ class MainActivity : BridgeActivity() {
         // to correctly populate env(safe-area-inset-*) in the WebView.
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
+    }
+
+    fun getNativeRenderer(): SurfaceViewRenderer? = nativeSurface
+    fun getEglContext(): EglBase.Context? = eglBase?.eglBaseContext
+
+    /** Toggles the visibility of the native surface and makes WebView transparent. */
+    fun setNativeMode(enabled: Boolean) {
+        runOnUiThread {
+            nativeSurface?.visibility = if (enabled) SurfaceView.VISIBLE else SurfaceView.GONE
+            if (enabled) {
+                bridge.webView.backgroundColor = Color.TRANSPARENT
+            } else {
+                bridge.webView.backgroundColor = Color.parseColor("#121212") // Default app background
+            }
+        }
     }
 
     /** Called by GfnPlugin.setOrientation to lock or restore screen rotation. */

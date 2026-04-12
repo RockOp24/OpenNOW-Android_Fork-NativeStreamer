@@ -155,6 +155,11 @@ function buildCapacitorApi(): OpenNowApi {
     toggleFullscreen: () => callNativePlugin("toggleFullscreen"),
     setOrientation: (mode: string) => callNativePlugin("setOrientation", { mode }),
     togglePointerLock: () => Promise.resolve(), // no pointer lock on touch screens
+    setNativeStreamerActive: (active: boolean) => callNativePlugin("setNativeStreamerActive", { active }),
+    initializeNativeStreamer: () => callNativePlugin("initializeNativeStreamer"),
+    startNativeStreamer: (sdp: string, iceServers: any[]) => callNativePlugin("startNativeStreamer", { sdp, iceServers }),
+    addNativeIceCandidate: (candidate: any) => callNativePlugin("addNativeIceCandidate", candidate),
+    stopNativeStreamer: () => callNativePlugin("stopNativeStreamer"),
 
     getSettings: () =>
       withTimeout(
@@ -172,6 +177,7 @@ function buildCapacitorApi(): OpenNowApi {
           sessionClockShowEveryMinutes: 60, sessionClockShowDurationSeconds: 30,
           windowWidth: 1400, windowHeight: 900,
           touchGamepadLayout: "{}",
+          useNativeStreamer: false,
         } as any
       ),
     setSetting: (key, value) => callNativePlugin("setSetting", { key, value }),

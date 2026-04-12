@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 
 import { getPlatformApi } from "./platform/index";
-import { isAndroid } from "./platform/detect";  // isAndroid is now a function -- call it as isAndroid()
+import { isAndroid, getPlatform } from "./platform/detect";  // isAndroid is now a function -- call it as isAndroid()
 import { TouchGamepad, parseLayout } from "./components/TouchGamepad";
 import type { GamepadElementId, GamepadLayout } from "./components/TouchGamepad";
 import { TouchInputHandler } from "./gfn/touchInput";
@@ -290,9 +290,9 @@ export function App(): JSX.Element {
     hideStreamButtons: false,
     sessionClockShowEveryMinutes: 60,
     sessionClockShowDurationSeconds: 30,
-    windowWidth: 1400,
     windowHeight: 900,
     touchGamepadLayout: "{}",
+    useNativeStreamer: false,
   });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [regions, setRegions] = useState<StreamRegion[]>([]);
@@ -428,6 +428,13 @@ export function App(): JSX.Element {
     }, 10000);
     return () => window.clearInterval(timer);
   }, [authSession, refreshNavbarActiveSession, streamStatus]);
+
+  // Sync native streamer mode with Android bridge
+  useEffect(() => {
+    if (getPlatform() === "capacitor" && settingsLoaded) {
+      void getPlatformApi().setNativeStreamerActive(settings.useNativeStreamer);
+    }
+  }, [settings.useNativeStreamer, settingsLoaded]);
 
   // Initialize app
   useEffect(() => {
