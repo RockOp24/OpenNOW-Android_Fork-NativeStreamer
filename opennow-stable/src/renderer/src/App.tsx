@@ -589,6 +589,15 @@ export function App(): JSX.Element {
     settings.shortcutToggleMicrophone,
   ]);
 
+  const hasTouchInput = typeof navigator !== "undefined" && typeof window !== "undefined" && (
+    navigator.maxTouchPoints > 0 ||
+    "ontouchstart" in window
+  );
+
+  const shouldShowTouchGamepad = streamStatus === "streaming" && (
+    isAndroid() || hasTouchInput
+  );
+
   const requestEscLockedPointerCapture = useCallback(async (target: HTMLVideoElement) => {
     // Touch screens don't use pointer lock -- skip entirely on Android.
     if (isAndroid()) return;
@@ -1546,7 +1555,7 @@ export function App(): JSX.Element {
           >
             <TouchGamepad
               clientRef={clientRef}
-              visible={isAndroid() && streamStatus === "streaming"}
+              visible={shouldShowTouchGamepad}
             />
           </StreamView>
         )}
