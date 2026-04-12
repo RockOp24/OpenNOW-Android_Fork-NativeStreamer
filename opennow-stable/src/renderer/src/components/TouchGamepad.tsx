@@ -135,20 +135,22 @@ function FaceButton({ label, color, xinputFlag, clientRef, disabled }: FaceButto
   }, [clientRef, xinputFlag, disabled]);
 
   return (
-    <button
-      type="button"
+    <div
       className={`tgp-face-btn ${pressed ? "tgp-face-btn--pressed" : ""}`}
       style={{
         borderColor: color,
         color: pressed ? "#000" : color,
         background: pressed ? color : "rgba(0,0,0,0.5)",
+        touchAction: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
       onTouchStart={(e) => { e.preventDefault(); onPress(); }}
       onTouchEnd={(e)   => { e.preventDefault(); onRelease(); }}
       onTouchCancel={(e) => { e.preventDefault(); onRelease(); }}
     >
       {label}
-    </button>
+    </div>
   );
 }
 
@@ -159,7 +161,6 @@ interface DpadProps {
 
 function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
   const pressed = useRef(new Set<number>());
-  const activeId = useRef<number | null>(null);
 
   const press = useCallback((flag: number) => {
     if (disabled) return;
@@ -196,34 +197,18 @@ function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
     return flags;
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchUpdate = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (disabled) return;
-    if (activeId.current !== null) return;
-
-    const touch = e.changedTouches[0];
-    if (!touch) return;
-
-    activeId.current = touch.identifier;
-    const target = e.currentTarget;
-    for (const f of flagsFromPosition(target, touch.clientX, touch.clientY)) press(f);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (disabled || activeId.current === null) return;
     const target = e.currentTarget;
 
-    let foundTouch: { clientX: number, clientY: number } | undefined;
-    for (const t of Array.from(e.touches)) {
-      if (t.identifier === activeId.current) {
-        foundTouch = t;
-        break;
+    const next = new Set<number>();
+    for (const t of Array.from(e.targetTouches)) {
+      for (const f of flagsFromPosition(target, t.clientX, t.clientY)) {
+        next.add(f);
       }
     }
-    if (!foundTouch) return;
 
-    const next = new Set<number>(flagsFromPosition(target, foundTouch.clientX, foundTouch.clientY));
     for (const f of pressed.current) {
       if (!next.has(f)) release(f);
     }
@@ -234,27 +219,20 @@ function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (disabled || activeId.current === null) return;
-
-    let found = false;
-    for (const t of Array.from(e.changedTouches)) {
-      if (t.identifier === activeId.current) {
-        found = true;
-        break;
-      }
-    }
-
-    if (found) {
-      activeId.current = null;
+    if (disabled) return;
+    if (e.targetTouches.length === 0) {
       releaseAll();
+    } else {
+      handleTouchUpdate(e);
     }
   };
 
   return (
     <div
       className="tgp-dpad"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
+      style={{ touchAction: "none" }}
+      onTouchStart={handleTouchUpdate}
+      onTouchMove={handleTouchUpdate}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
     >
@@ -369,9 +347,9 @@ function ShoulderButton({ label, xinputFlag, clientRef, disabled }: ShoulderProp
   const [pressed, setPressed] = useState(false);
 
   return (
-    <button
-      type="button"
+    <div
       className={`tgp-shoulder ${pressed ? "tgp-shoulder--pressed" : ""}`}
+      style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
       onTouchStart={(e) => {
         e.preventDefault();
         if (disabled) return;
@@ -381,8 +359,10 @@ function ShoulderButton({ label, xinputFlag, clientRef, disabled }: ShoulderProp
       onTouchEnd={(e) => {
         e.preventDefault();
         if (disabled) return;
-        setPressed(false);
-        clientRef.current?.sendGamepadButton(xinputFlag, false);
+        if (e.targetTouches.length === 0) {
+          setPressed(false);
+          clientRef.current?.sendGamepadButton(xinputFlag, false);
+        }
       }}
       onTouchCancel={(e) => {
         e.preventDefault();
@@ -392,7 +372,7 @@ function ShoulderButton({ label, xinputFlag, clientRef, disabled }: ShoulderProp
       }}
     >
       {label}
-    </button>
+    </div>
   );
 }
 
@@ -407,9 +387,9 @@ function TriggerButton({ label, side, clientRef, disabled }: TriggerButtonProps)
   const [pressed, setPressed] = useState(false);
 
   return (
-    <button
-      type="button"
+    <div
       className={`tgp-shoulder ${pressed ? "tgp-shoulder--pressed" : ""}`}
+      style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
       onTouchStart={(e) => {
         e.preventDefault();
         if (disabled) return;
@@ -419,8 +399,10 @@ function TriggerButton({ label, side, clientRef, disabled }: TriggerButtonProps)
       onTouchEnd={(e) => {
         e.preventDefault();
         if (disabled) return;
-        setPressed(false);
-        clientRef.current?.sendGamepadTrigger(side, 0);
+        if (e.targetTouches.length === 0) {
+          setPressed(false);
+          clientRef.current?.sendGamepadTrigger(side, 0);
+        }
       }}
       onTouchCancel={(e) => {
         e.preventDefault();
@@ -430,7 +412,7 @@ function TriggerButton({ label, side, clientRef, disabled }: TriggerButtonProps)
       }}
     >
       {label}
-    </button>
+    </div>
   );
 }
 
@@ -445,9 +427,9 @@ function CentreButton({ label, xinputFlag, clientRef, disabled }: CentreButtonPr
   const [pressed, setPressed] = useState(false);
 
   return (
-    <button
-      type="button"
+    <div
       className={`tgp-centre ${pressed ? "tgp-centre--pressed" : ""}`}
+      style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
       onTouchStart={(e) => {
         e.preventDefault();
         if (disabled) return;
@@ -457,8 +439,10 @@ function CentreButton({ label, xinputFlag, clientRef, disabled }: CentreButtonPr
       onTouchEnd={(e) => {
         e.preventDefault();
         if (disabled) return;
-        setPressed(false);
-        clientRef.current?.sendGamepadButton(xinputFlag, false);
+        if (e.targetTouches.length === 0) {
+          setPressed(false);
+          clientRef.current?.sendGamepadButton(xinputFlag, false);
+        }
       }}
       onTouchCancel={(e) => {
         e.preventDefault();
@@ -468,7 +452,7 @@ function CentreButton({ label, xinputFlag, clientRef, disabled }: CentreButtonPr
       }}
     >
       {label}
-    </button>
+    </div>
   );
 }
 
