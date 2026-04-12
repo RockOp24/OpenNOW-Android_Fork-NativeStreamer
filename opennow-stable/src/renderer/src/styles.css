@@ -3051,10 +3051,10 @@ body.controller-mode {
 
 /* Root overlay -- sits above the stream video, covers full viewport */
 .tgp {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 200;
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;

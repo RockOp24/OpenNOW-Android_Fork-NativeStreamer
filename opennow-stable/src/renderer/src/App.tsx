@@ -1543,14 +1543,13 @@ export function App(): JSX.Element {
             onToggleMicrophone={() => {
               clientRef.current?.toggleMicrophone();
             }}
-          />
+          >
+            <TouchGamepad
+              clientRef={clientRef}
+              visible={isAndroid() && streamStatus === "streaming"}
+            />
+          </StreamView>
         )}
-
-        {/* On-screen gamepad -- only shown on Android while the stream is running */}
-        <TouchGamepad
-          clientRef={clientRef}
-          visible={isAndroid() && streamStatus === "streaming"}
-        />
 
         {streamStatus !== "streaming" && (
           <StreamLoading

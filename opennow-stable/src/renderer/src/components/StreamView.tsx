@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { Maximize, Minimize, Gamepad2, Loader2, LogOut, Clock3, AlertTriangle, Mic, MicOff } from "lucide-react";
 import type { StreamDiagnostics } from "../gfn/webrtcClient";
 
@@ -37,6 +37,7 @@ interface StreamViewProps {
   } | null;
   isConnecting: boolean;
   gameTitle: string;
+  children?: ReactNode;
   onToggleFullscreen: () => void;
   onConfirmExit: () => void;
   onCancelExit: () => void;
@@ -111,6 +112,7 @@ export function StreamView({
   streamWarning,
   isConnecting,
   gameTitle,
+  children,
   onToggleFullscreen,
   onConfirmExit,
   onCancelExit,
@@ -261,6 +263,8 @@ export function StreamView({
           <div className="sv-empty-grad" />
         </div>
       )}
+
+      {children}
 
       {/* Connecting overlay */}
       {isConnecting && (
