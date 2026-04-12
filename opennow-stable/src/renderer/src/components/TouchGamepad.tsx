@@ -159,6 +159,7 @@ interface DpadProps {
 
 function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
   const pressed = useRef(new Set<number>());
+  const activeId = useRef<number | null>(null);
 
   const press = useCallback((flag: number) => {
     if (disabled) return;
@@ -198,20 +199,31 @@ function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (disabled) return;
+    if (activeId.current !== null) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    activeId.current = touch.identifier;
     const target = e.currentTarget;
-    for (const t of Array.from(e.changedTouches)) {
-      for (const f of flagsFromPosition(target, t.clientX, t.clientY)) press(f);
-    }
+    for (const f of flagsFromPosition(target, touch.clientX, touch.clientY)) press(f);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (disabled) return;
+    if (disabled || activeId.current === null) return;
     const target = e.currentTarget;
-    const next = new Set<number>();
+
+    let foundTouch: { clientX: number, clientY: number } | undefined;
     for (const t of Array.from(e.touches)) {
-      for (const f of flagsFromPosition(target, t.clientX, t.clientY)) next.add(f);
+      if (t.identifier === activeId.current) {
+        foundTouch = t;
+        break;
+      }
     }
+    if (!foundTouch) return;
+
+    const next = new Set<number>(flagsFromPosition(target, foundTouch.clientX, foundTouch.clientY));
     for (const f of pressed.current) {
       if (!next.has(f)) release(f);
     }
@@ -222,8 +234,20 @@ function Dpad({ clientRef, disabled }: DpadProps): JSX.Element {
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (disabled) return;
-    if (e.touches.length === 0) releaseAll();
+    if (disabled || activeId.current === null) return;
+
+    let found = false;
+    for (const t of Array.from(e.changedTouches)) {
+      if (t.identifier === activeId.current) {
+        found = true;
+        break;
+      }
+    }
+
+    if (found) {
+      activeId.current = null;
+      releaseAll();
+    }
   };
 
   return (
