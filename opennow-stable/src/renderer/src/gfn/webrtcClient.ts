@@ -2528,13 +2528,6 @@ export class GfnWebRtcClient {
     this.setupStatsPolling();
 
     pc.onicecandidate = (event) => {
-      // ... (existing logic)
-    };
-    
-    // In GfnPlugin.kt we use notifyListeners("onLocalIceCandidate", ...) 
-    // Capacitor's notifyListeners sends an event to the window.
-    // ... logic handled above in handleOffer if useNative is true.
-
       if (!event.candidate) {
         this.log("ICE gathering complete (null candidate)");
         return;
