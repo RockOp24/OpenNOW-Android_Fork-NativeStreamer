@@ -162,9 +162,11 @@ function buildCapacitorApi(): OpenNowApi {
       const cap = (window as any).Capacitor;
       if (cap?.Plugins?.GfnPlugin) {
         cap.Plugins.GfnPlugin.addListener('onAnswerCreated', (data: any) => {
+          console.log("[Bridge] onAnswerCreated received from Native:", data);
           window.dispatchEvent(new CustomEvent('onAnswerCreated', { detail: data }));
         });
         cap.Plugins.GfnPlugin.addListener('onLocalIceCandidate', (data: any) => {
+          console.log("[Bridge] onLocalIceCandidate received from Native:", data);
           window.dispatchEvent(new CustomEvent('onLocalIceCandidate', { detail: data }));
         });
       }

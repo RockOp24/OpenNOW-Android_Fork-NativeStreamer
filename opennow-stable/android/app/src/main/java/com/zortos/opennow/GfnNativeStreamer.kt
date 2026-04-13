@@ -107,6 +107,10 @@ class GfnNativeStreamer(
                         event.put("sdpMid", it.sdpMid)
                         event.put("sdpMLineIndex", it.sdpMLineIndex)
                         onEvent("onLocalIceCandidate", event)
+
+                        (context as? android.app.Activity)?.runOnUiThread {
+                            android.widget.Toast.makeText(context, "Gathered ICE Candidate", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
 
@@ -132,7 +136,13 @@ class GfnNativeStreamer(
                     Log.i(TAG, "Track added: ${receiver?.track()?.kind()}")
                     receiver?.track()?.let { track ->
                         if (track is VideoTrack) {
+                            Log.i(TAG, "Video Track Added - Attaching Sink")
+                            track.setEnabled(true)
                             track.addSink(renderer)
+                            
+                            (context as? android.app.Activity)?.runOnUiThread {
+                                android.widget.Toast.makeText(context, "[FOUND] Video Track Attached!", android.widget.Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 }
@@ -184,6 +194,10 @@ class GfnNativeStreamer(
                     val event = JSObject()
                     event.put("sdp", it.description)
                     onEvent("onAnswerCreated", event)
+
+                    (context as? android.app.Activity)?.runOnUiThread {
+                        android.widget.Toast.makeText(context, "Handshake Answer Generated!", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
             override fun onSetSuccess() {

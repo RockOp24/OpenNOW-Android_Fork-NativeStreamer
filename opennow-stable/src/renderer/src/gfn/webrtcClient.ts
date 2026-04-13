@@ -2448,8 +2448,11 @@ export class GfnWebRtcClient {
 
         const onNativeAnswer = async (e: any) => {
           const sdp = e.detail?.sdp;
+          console.log("[NativeStreamer] Bridged Answer received:", sdp ? sdp.substring(0, 50) + "..." : "NULL");
           if (sdp) {
             this.log("Native Answer received, sending to server...");
+            // Temporary high-visibility check
+            // alert("[JS] Native Answer Received! Handsake proceeding...");
             const munged = mungeAnswerSdp(sdp, settings.maxBitrateKbps);
             const credentials = extractIceCredentials(sdp);
             const { width, height } = parseResolution(settings.resolution);
