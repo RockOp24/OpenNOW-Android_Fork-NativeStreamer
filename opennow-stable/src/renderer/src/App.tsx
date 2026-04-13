@@ -433,6 +433,13 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (getPlatform() === "capacitor" && settingsLoaded) {
       void getPlatformApi().setNativeStreamerActive(settings.useNativeStreamer);
+      
+      // Toggle CSS class for transparency
+      if (settings.useNativeStreamer) {
+        document.body.classList.add("native-streamer-active");
+      } else {
+        document.body.classList.remove("native-streamer-active");
+      }
     }
   }, [settings.useNativeStreamer, settingsLoaded]);
 

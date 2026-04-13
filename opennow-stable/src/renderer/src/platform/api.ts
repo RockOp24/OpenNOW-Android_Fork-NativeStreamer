@@ -156,7 +156,19 @@ function buildCapacitorApi(): OpenNowApi {
     setOrientation: (mode: string) => callNativePlugin("setOrientation", { mode }),
     togglePointerLock: () => Promise.resolve(), // no pointer lock on touch screens
     setNativeStreamerActive: (active: boolean) => callNativePlugin("setNativeStreamerActive", { active }),
-    initializeNativeStreamer: () => callNativePlugin("initializeNativeStreamer"),
+    initializeNativeStreamer: async () => {
+      await callNativePlugin("initializeNativeStreamer");
+      // Bridge Capacitor events to window events for webrtcClient.ts
+      const cap = (window as any).Capacitor;
+      if (cap?.Plugins?.GfnPlugin) {
+        cap.Plugins.GfnPlugin.addListener('onAnswerCreated', (data: any) => {
+          window.dispatchEvent(new CustomEvent('onAnswerCreated', { detail: data }));
+        });
+        cap.Plugins.GfnPlugin.addListener('onLocalIceCandidate', (data: any) => {
+          window.dispatchEvent(new CustomEvent('onLocalIceCandidate', { detail: data }));
+        });
+      }
+    },
     startNativeStreamer: (sdp: string, iceServers: any[]) => callNativePlugin("startNativeStreamer", { sdp, iceServers }),
     addNativeIceCandidate: (candidate: any) => callNativePlugin("addNativeIceCandidate", candidate),
     stopNativeStreamer: () => callNativePlugin("stopNativeStreamer"),

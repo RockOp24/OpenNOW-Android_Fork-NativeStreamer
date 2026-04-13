@@ -93,6 +93,11 @@ body,
   overflow-x: hidden;
 }
 
+body.native-streamer-active,
+body.native-streamer-active #root {
+  background: transparent !important;
+}
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
