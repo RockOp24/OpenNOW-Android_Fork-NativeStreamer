@@ -77,4 +77,9 @@ class VideoRendererManager(private val activity: Activity) {
         eglBase?.release()
         eglBase = null
     }
+
+    fun isRendererAttached(): Boolean {
+        return renderer != null && overlayContainer?.visibility == View.VISIBLE
+    }
+
 }

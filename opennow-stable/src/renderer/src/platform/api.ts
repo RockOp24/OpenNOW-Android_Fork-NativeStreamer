@@ -92,6 +92,17 @@ export async function nativeAddIceCandidate(input: {
   await callNativePlugin("nativeAddIceCandidate", input);
 }
 
+export async function getStreamerStatus(): Promise<{
+  nativeStreamerAvailable: boolean;
+  nativePeerConnectionActive: boolean;
+  videoRendererAttached: boolean;
+  webRtcLibrary: string;
+  decoderType: string;
+}> {
+  return callNativePlugin("getStreamerStatus", {});
+}
+
+
 /**
  * Thin wrapper that builds an OpenNowApi-compatible object over Capacitor.
  *

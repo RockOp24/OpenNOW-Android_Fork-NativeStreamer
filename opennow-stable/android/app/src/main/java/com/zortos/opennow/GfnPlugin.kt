@@ -3,6 +3,7 @@ package com.zortos.opennow
 import android.content.Intent
 import android.net.Uri
 import android.util.Base64
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.getcapacitor.JSObject
@@ -1341,6 +1342,18 @@ class GfnPlugin : Plugin() {
         }
         notifyListeners("nativeSignalingEvent", payload)
     }
+    @PluginMethod
+    fun getStreamerStatus(call: PluginCall) {
+        val result = JSObject()
+        result.put("nativeStreamerAvailable", nativeStreamer != null)
+        result.put("nativePeerConnectionActive", nativeStreamer?.isPeerConnectionActive() ?: false)
+        result.put("videoRendererAttached", videoRendererManager?.isRendererAttached() ?: false)
+        result.put("webRtcLibrary", "native-libwebrtc")
+        result.put("decoderType", "MediaCodec-hardware")
+        Log.i("GfnPlugin", "Streamer status: native=${nativeStreamer != null}, peer=${nativeStreamer?.isPeerConnectionActive() ?: false}, renderer=${videoRendererManager?.isRendererAttached() ?: false}")
+        call.resolve(result)
+    }
+
 
     // ──────────────────────────────────────────────────────────────
     // Settings

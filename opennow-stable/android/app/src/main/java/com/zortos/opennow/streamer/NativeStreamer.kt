@@ -1,4 +1,5 @@
 package com.zortos.opennow.streamer
+import android.util.Log
 
 import android.content.Context
 import org.webrtc.EglBase
@@ -25,6 +26,13 @@ class NativeStreamer(private val context: Context) {
     private var remoteVideoTrack: VideoTrack? = null
     private var localAudioSource: AudioSource? = null
     private var localAudioTrack: AudioTrack? = null
+
+    init {
+        Log.i("NativeStreamer", "=== NATIVE WEBRTC STREAMER INITIALIZED ===")
+        Log.i("NativeStreamer", "PeerConnectionFactory created with hardware codecs")
+        Log.i("NativeStreamer", "Video decoder: MediaCodec (hardware accelerated)")
+        Log.i("NativeStreamer", "Audio module: JavaAudioDeviceModule with hardware AEC/NS")
+    }
 
     fun initialize(eglContext: EglBase.Context?) {
         if (eglBase == null) {
@@ -174,6 +182,10 @@ class NativeStreamer(private val context: Context) {
         peerConnectionFactory = null
         eglBase?.release()
         eglBase = null
+    }
+
+    fun isPeerConnectionActive(): Boolean {
+        return peerConnection != null && peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED
     }
 
     private fun preferVideoCodecs(sdp: String, codecNames: List<String>): String {

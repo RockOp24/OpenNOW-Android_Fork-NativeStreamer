@@ -3337,3 +3337,24 @@ body.controller-mode {
     animation-iteration-count: infinite !important;
   }
 }
+
+.sv-native-debug {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--panel-border);
+  background: rgba(10, 10, 12, 0.93);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(5px);
+  pointer-events: none;
+}
