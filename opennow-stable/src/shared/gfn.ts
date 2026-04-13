@@ -332,6 +332,7 @@ export interface OpenNowApi {
   /** Listen for F11 fullscreen toggle from main process */
   onToggleFullscreen(listener: () => void): () => void;
   toggleFullscreen(): Promise<void>;
+  setOrientation(mode: string): Promise<void>;
   togglePointerLock(): Promise<void>;
   /** (Android Only) Control the native MediaCodec + WebRTC layer */
   setNativeStreamerActive(active: boolean): Promise<void>;
@@ -343,4 +344,5 @@ export interface OpenNowApi {
   getSettings(): Promise<Settings>;
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
   resetSettings(): Promise<Settings>;
+  pingRegions(urls: string[]): Promise<{ results: Record<string, number> }>;
 }
