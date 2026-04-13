@@ -2436,15 +2436,24 @@ export class GfnWebRtcClient {
         const sendFn = (window as any).openNow?.sendIceCandidate ?? signalingApi.sendIceCandidate.bind(signalingApi);
         const sendAnswerFn = (window as any).openNow?.sendAnswer ?? signalingApi.sendAnswer.bind(signalingApi);
 
-        // Add listeners for native bridge events
-        // Note: These are fired via notifyListeners in Kotlin
         const onNativeAnswer = async (e: any) => {
           const sdp = e.detail?.sdp;
           if (sdp) {
             this.log("Native Answer received, sending to server...");
-            const munged = mungeAnswerSdp(sdp, settings.codec, settings.colorQuality);
-            const nvstSdp = buildNvstSdp(offerSdp, munged, settings.codec, settings.colorQuality, settings.resolution, settings.fps, settings.maxBitrateKbps);
-            await sendAnswerFn(munged, nvstSdp);
+            const munged = mungeAnswerSdp(sdp, settings.maxBitrateKbps);
+            const credentials = extractIceCredentials(sdp);
+            const { width, height } = parseResolution(settings.resolution);
+            const nvstSdp = buildNvstSdp({
+              width,
+              height,
+              fps: settings.fps,
+              maxBitrateKbps: settings.maxBitrateKbps,
+              partialReliableThresholdMs: this.partialReliableThresholdMs,
+              codec: settings.codec,
+              colorQuality: settings.colorQuality,
+              credentials,
+            });
+            await sendAnswerFn({ sdp: munged, nvstSdp });
           }
         };
 
@@ -2749,11 +2758,11 @@ export class GfnWebRtcClient {
 
     const credentials = extractIceCredentials(finalSdp);
     this.log(`Extracted ICE credentials: ufrag=${credentials.ufrag}, pwd=${credentials.pwd.slice(0, 8)}...`);
-    const { width, height } = parseResolution(settings.resolution);
+    const { width: finalWidth, height: finalHeight } = parseResolution(settings.resolution);
 
-    const nvstSdp = buildNvstSdp({
-      width,
-      height,
+    const finalNvstSdp = buildNvstSdp({
+      width: finalWidth,
+      height: finalHeight,
       fps: settings.fps,
       maxBitrateKbps: settings.maxBitrateKbps,
       partialReliableThresholdMs: this.partialReliableThresholdMs,
@@ -2762,8 +2771,8 @@ export class GfnWebRtcClient {
       credentials,
     });
 
-    const sendAnswerFn = (window as any).openNow?.sendAnswer ?? getPlatformApi().sendAnswer.bind(getPlatformApi());
-    await sendAnswerFn({ sdp: finalSdp, nvstSdp });
+    const finalSendAnswerFn = (window as any).openNow?.sendAnswer ?? getPlatformApi().sendAnswer.bind(getPlatformApi());
+    await finalSendAnswerFn({ sdp: finalSdp, nvstSdp: finalNvstSdp });
     this.log("Sent SDP answer and nvstSdp");
 
     // 5. Inject manual ICE candidate from mediaConnectionInfo AFTER answer is sent
