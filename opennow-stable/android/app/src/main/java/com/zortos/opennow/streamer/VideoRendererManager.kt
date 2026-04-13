@@ -64,7 +64,7 @@ class VideoRendererManager(private val activity: Activity) {
     }
 
     fun onResume() {
-        renderer?.onResume()
+        renderer?.visibility = View.VISIBLE
     }
 
     fun release() {
