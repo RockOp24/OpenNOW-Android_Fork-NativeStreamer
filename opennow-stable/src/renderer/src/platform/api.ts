@@ -70,11 +70,10 @@ async function callNativePlugin<T>(method: string, args?: Record<string, unknown
   return callCapacitor("GfnPlugin", method, args ?? {}) as Promise<T>;
 }
 
-export async function createNativePeerConnection(config: RTCConfiguration): Promise<string> {
-  const response = await callNativePlugin<{ id?: string }>("createNativePeerConnection", {
+export async function createNativePeerConnection(config: RTCConfiguration): Promise<void> {
+  await callNativePlugin("createNativePeerConnection", {
     iceServers: config.iceServers ?? [],
   });
-  return response?.id ?? "";
 }
 
 export async function nativeSetRemoteDescription(sdp: string, type: "offer" | "answer"): Promise<void> {

@@ -1241,18 +1241,40 @@ class GfnPlugin : Plugin() {
     fun nativeSetRemoteDescription(call: PluginCall) {
         val sdp = call.getString("sdp") ?: run { call.reject("Missing SDP"); return }
         val type = call.getString("type") ?: "offer"
+        val streamer = nativeStreamer ?: run {
+            call.reject("Native streamer is not initialized")
+            return
+        }
 
-        nativeStreamer?.setRemoteDescription(
+        streamer.setRemoteDescription(
             SessionDescription(
                 if (type == "offer") SessionDescription.Type.OFFER else SessionDescription.Type.ANSWER,
                 sdp
             )
-        ) { call.resolve() }
+        ) { error ->
+            if (error == null) {
+                call.resolve()
+            } else {
+                call.reject(error)
+            }
+        }
     }
 
     @PluginMethod
     fun nativeCreateAnswer(call: PluginCall) {
-        nativeStreamer?.createAnswer { sdp ->
+        val streamer = nativeStreamer ?: run {
+            call.reject("Native streamer is not initialized")
+            return
+        }
+        streamer.createAnswer { sdp, error ->
+            if (error != null) {
+                call.reject(error)
+                return@createAnswer
+            }
+            if (sdp == null) {
+                call.reject("nativeCreateAnswer failed: no SDP produced")
+                return@createAnswer
+            }
             val result = JSObject()
             result.put("sdp", sdp.description)
             result.put("type", sdp.type.canonicalForm())

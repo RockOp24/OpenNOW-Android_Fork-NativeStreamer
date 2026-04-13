@@ -41,6 +41,10 @@ class NativeStreamer(private val context: Context) {
         observer: PeerConnection.Observer,
     ) {
         val factory = peerConnectionFactory ?: return
+        remoteVideoTrack?.removeSink(videoSink)
+        remoteVideoTrack = null
+        peerConnection?.dispose()
+        peerConnection = null
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             enableCpuOveruseDetection = true
@@ -99,18 +103,24 @@ class NativeStreamer(private val context: Context) {
         peerConnection?.setAudioRecording(true)
     }
 
-    fun setRemoteDescription(sdp: SessionDescription, callback: () -> Unit) {
-        val pc = peerConnection ?: return
+    fun setRemoteDescription(sdp: SessionDescription, callback: (String?) -> Unit) {
+        val pc = peerConnection ?: run {
+            callback("Peer connection is not initialized")
+            return
+        }
         pc.setRemoteDescription(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription?) = Unit
-            override fun onSetSuccess() = callback()
+            override fun onSetSuccess() = callback(null)
             override fun onCreateFailure(error: String?) = Unit
-            override fun onSetFailure(error: String?) = Unit
+            override fun onSetFailure(error: String?) = callback(error ?: "setRemoteDescription failed")
         }, sdp)
     }
 
-    fun createAnswer(callback: (SessionDescription) -> Unit) {
-        val pc = peerConnection ?: return
+    fun createAnswer(callback: (SessionDescription?, String?) -> Unit) {
+        val pc = peerConnection ?: run {
+            callback(null, "Peer connection is not initialized")
+            return
+        }
         val constraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
@@ -118,7 +128,10 @@ class NativeStreamer(private val context: Context) {
 
         pc.createAnswer(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription?) {
-                val answer = sessionDescription ?: return
+                val answer = sessionDescription ?: run {
+                    callback(null, "createAnswer returned null SessionDescription")
+                    return
+                }
                 val preferred = SessionDescription(
                     answer.type,
                     preferVideoCodecs(answer.description, listOf("AV1", "H265", "H264"))
@@ -126,14 +139,14 @@ class NativeStreamer(private val context: Context) {
                 applyCodecPreferences(pc)
                 pc.setLocalDescription(object : SdpObserver {
                     override fun onCreateSuccess(sessionDescription: SessionDescription?) = Unit
-                    override fun onSetSuccess() = callback(preferred)
-                    override fun onCreateFailure(error: String?) = Unit
-                    override fun onSetFailure(error: String?) = Unit
+                    override fun onSetSuccess() = callback(preferred, null)
+                    override fun onCreateFailure(error: String?) = callback(null, error ?: "setLocalDescription create failure")
+                    override fun onSetFailure(error: String?) = callback(null, error ?: "setLocalDescription failed")
                 }, preferred)
             }
 
             override fun onSetSuccess() = Unit
-            override fun onCreateFailure(error: String?) = Unit
+            override fun onCreateFailure(error: String?) = callback(null, error ?: "createAnswer failed")
             override fun onSetFailure(error: String?) = Unit
         }, constraints)
     }
