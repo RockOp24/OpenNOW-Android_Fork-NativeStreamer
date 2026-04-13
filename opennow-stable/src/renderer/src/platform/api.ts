@@ -70,6 +70,29 @@ async function callNativePlugin<T>(method: string, args?: Record<string, unknown
   return callCapacitor("GfnPlugin", method, args ?? {}) as Promise<T>;
 }
 
+export async function createNativePeerConnection(config: RTCConfiguration): Promise<string> {
+  const response = await callNativePlugin<{ id?: string }>("createNativePeerConnection", {
+    iceServers: config.iceServers ?? [],
+  });
+  return response?.id ?? "";
+}
+
+export async function nativeSetRemoteDescription(sdp: string, type: "offer" | "answer"): Promise<void> {
+  await callNativePlugin("nativeSetRemoteDescription", { sdp, type });
+}
+
+export async function nativeCreateAnswer(): Promise<{ sdp: string; type: string }> {
+  return callNativePlugin<{ sdp: string; type: string }>("nativeCreateAnswer", {});
+}
+
+export async function nativeAddIceCandidate(input: {
+  candidate: string;
+  sdpMid?: string;
+  sdpMLineIndex?: number;
+}): Promise<void> {
+  await callNativePlugin("nativeAddIceCandidate", input);
+}
+
 /**
  * Thin wrapper that builds an OpenNowApi-compatible object over Capacitor.
  *

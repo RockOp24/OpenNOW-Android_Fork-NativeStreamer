@@ -4,11 +4,13 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.core.view.WindowCompat
 import com.getcapacitor.BridgeActivity
+import org.webrtc.EglBase
 
 class MainActivity : BridgeActivity() {
+    private var rootEglBase: EglBase? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(GfnPlugin::class.java)
         super.onCreate(savedInstanceState)
@@ -19,6 +21,7 @@ class MainActivity : BridgeActivity() {
         // to correctly populate env(safe-area-inset-*) in the WebView.
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
+        rootEglBase = EglBase.create()
     }
 
     /** Called by GfnPlugin.setOrientation to lock or restore screen rotation. */
@@ -42,4 +45,12 @@ class MainActivity : BridgeActivity() {
             plugin?.handleOAuthRedirect(uri)
         }
     }
+
+    override fun onDestroy() {
+        rootEglBase?.release()
+        rootEglBase = null
+        super.onDestroy()
+    }
+
+    fun eglContext(): EglBase.Context? = rootEglBase?.eglBaseContext
 }

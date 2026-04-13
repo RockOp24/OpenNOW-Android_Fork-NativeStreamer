@@ -12,6 +12,9 @@ import com.getcapacitor.PluginMethod
 import androidx.activity.result.ActivityResult
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.zortos.opennow.streamer.NativeStreamer
+import com.zortos.opennow.streamer.SignalingBridge
+import com.zortos.opennow.streamer.VideoRendererManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +25,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
 import org.json.JSONObject
+import org.webrtc.IceCandidate
+import org.webrtc.PeerConnection
+import org.webrtc.SessionDescription
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
@@ -94,6 +100,35 @@ class GfnPlugin : Plugin() {
     @Volatile private var pendingCodeVerifier: String? = null
     @Volatile private var pendingProviderIdpId: String? = null
     @Volatile private var pendingRedirectPort: Int? = null
+
+    private var nativeStreamer: NativeStreamer? = null
+    private var videoRendererManager: VideoRendererManager? = null
+    private var signalingBridge: SignalingBridge? = null
+
+    override fun load() {
+        super.load()
+        nativeStreamer = NativeStreamer(activity.applicationContext)
+        videoRendererManager = VideoRendererManager(activity)
+        signalingBridge = SignalingBridge(this)
+    }
+
+    override fun handleOnPause() {
+        super.handleOnPause()
+        videoRendererManager?.onPause()
+    }
+
+    override fun handleOnResume() {
+        super.handleOnResume()
+        videoRendererManager?.onResume()
+    }
+
+    override fun handleOnDestroy() {
+        videoRendererManager?.release()
+        videoRendererManager = null
+        nativeStreamer?.dispose()
+        nativeStreamer = null
+        super.handleOnDestroy()
+    }
 
     @ActivityCallback
     private fun onLoginResult(call: PluginCall?, result: ActivityResult) {
@@ -1056,7 +1091,10 @@ class GfnPlugin : Plugin() {
                     signalingServer = signalingServer,
                     sessionId = sessionId,
                     signalingUrl = signalingUrl,
-                    onEvent = { event -> notifyListeners("signalingEvent", event) }
+                    onEvent = { event ->
+                        notifyListeners("signalingEvent", event)
+                        signalingBridge?.handleSignalingEvent(event)
+                    }
                 )
                 signalingManager?.connect()
                 call.resolve()
@@ -1100,6 +1138,186 @@ class GfnPlugin : Plugin() {
                 call.reject(e.message ?: "sendIceCandidate failed", e)
             }
         }
+    }
+
+    private fun parseIceServersFromCall(call: PluginCall): List<PeerConnection.IceServer> {
+        val iceServers = mutableListOf<PeerConnection.IceServer>()
+        val serversArray = call.getArray("iceServers") ?: return iceServers
+
+        for (i in 0 until serversArray.length()) {
+            val server = serversArray.optJSONObject(i) ?: continue
+            val urls = server.opt("urls")
+            val username = server.optString("username", "")
+            val credential = server.optString("credential", "")
+
+            val builder = when (urls) {
+                is String -> PeerConnection.IceServer.builder(urls)
+                is org.json.JSONArray -> {
+                    val list = mutableListOf<String>()
+                    for (u in 0 until urls.length()) {
+                        urls.optString(u)?.takeIf { it.isNotBlank() }?.let { list.add(it) }
+                    }
+                    if (list.isEmpty()) continue
+                    PeerConnection.IceServer.builder(list)
+                }
+                else -> continue
+            }
+
+            if (username.isNotBlank()) {
+                builder.setUsername(username)
+            }
+            if (credential.isNotBlank()) {
+                builder.setPassword(credential)
+            }
+            iceServers.add(builder.createIceServer())
+        }
+
+        return iceServers
+    }
+
+    private fun nativePeerObserver(): PeerConnection.Observer {
+        return object : PeerConnection.Observer {
+            override fun onSignalingChange(newState: PeerConnection.SignalingState?) = Unit
+            override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) = Unit
+            override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
+            override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState?) = Unit
+            override fun onIceCandidate(candidate: IceCandidate?) {
+                candidate ?: return
+                val payload = JSObject().also {
+                    it.put("candidate", candidate.sdp)
+                    it.put("sdpMid", candidate.sdpMid)
+                    it.put("sdpMLineIndex", candidate.sdpMLineIndex)
+                }
+                notifyListeners("nativeIceCandidate", payload)
+            }
+
+            override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) = Unit
+            override fun onAddStream(stream: org.webrtc.MediaStream?) = Unit
+            override fun onRemoveStream(stream: org.webrtc.MediaStream?) = Unit
+            override fun onDataChannel(dc: org.webrtc.DataChannel?) = Unit
+            override fun onRenegotiationNeeded() = Unit
+            override fun onAddTrack(
+                receiver: org.webrtc.RtpReceiver?,
+                mediaStreams: Array<out org.webrtc.MediaStream>?,
+            ) = Unit
+
+            override fun onTrack(transceiver: org.webrtc.RtpTransceiver?) = Unit
+            override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
+                notifyListeners("nativePeerConnectionState", JSObject().also {
+                    it.put("state", newState?.name ?: "UNKNOWN")
+                })
+            }
+
+            override fun onSelectedCandidatePairChanged(event: org.webrtc.CandidatePairChangeEvent?) = Unit
+            override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) = Unit
+        }
+    }
+
+    @PluginMethod
+    fun initializeNativeStreamer(call: PluginCall) {
+        activity.runOnUiThread {
+            try {
+                val eglContext = (activity as? MainActivity)?.eglContext()
+                nativeStreamer?.initialize(eglContext)
+                call.resolve()
+            } catch (e: Exception) {
+                call.reject(e.message ?: "Native streamer initialization failed", e)
+            }
+        }
+    }
+
+    @PluginMethod
+    fun createNativePeerConnection(call: PluginCall) {
+        try {
+            val iceServers = parseIceServersFromCall(call)
+            nativeStreamer?.createPeerConnection(iceServers, nativePeerObserver())
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject(e.message ?: "createNativePeerConnection failed", e)
+        }
+    }
+
+    @PluginMethod
+    fun nativeSetRemoteDescription(call: PluginCall) {
+        val sdp = call.getString("sdp") ?: run { call.reject("Missing SDP"); return }
+        val type = call.getString("type") ?: "offer"
+
+        nativeStreamer?.setRemoteDescription(
+            SessionDescription(
+                if (type == "offer") SessionDescription.Type.OFFER else SessionDescription.Type.ANSWER,
+                sdp
+            )
+        ) { call.resolve() }
+    }
+
+    @PluginMethod
+    fun nativeCreateAnswer(call: PluginCall) {
+        nativeStreamer?.createAnswer { sdp ->
+            val result = JSObject()
+            result.put("sdp", sdp.description)
+            result.put("type", sdp.type.canonicalForm())
+            call.resolve(result)
+        }
+    }
+
+    @PluginMethod
+    fun nativeAddIceCandidate(call: PluginCall) {
+        val candidate = call.getString("candidate") ?: run { call.reject("Missing candidate"); return }
+        val sdpMid = call.getString("sdpMid")
+        val sdpMLineIndex = call.getInt("sdpMLineIndex") ?: 0
+        nativeStreamer?.addIceCandidate(IceCandidate(sdpMid, sdpMLineIndex, candidate))
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun attachNativeVideoView(call: PluginCall) {
+        activity.runOnUiThread {
+            try {
+                val surfaceView = videoRendererManager?.attachOverlay((activity as? MainActivity)?.eglContext())
+                if (surfaceView != null) {
+                    nativeStreamer?.attachVideoRenderer(surfaceView)
+                }
+                call.resolve()
+            } catch (e: Exception) {
+                call.reject(e.message ?: "attachNativeVideoView failed", e)
+            }
+        }
+    }
+
+    @PluginMethod
+    fun detachNativeVideoView(call: PluginCall) {
+        activity.runOnUiThread {
+            videoRendererManager?.hideOverlay()
+            call.resolve()
+        }
+    }
+
+    @PluginMethod
+    fun disposeNativeStreamer(call: PluginCall) {
+        activity.runOnUiThread {
+            videoRendererManager?.hideOverlay()
+            nativeStreamer?.dispose()
+            nativeStreamer = NativeStreamer(activity.applicationContext)
+            call.resolve()
+        }
+    }
+
+    fun handleNativeOfferFromSignaling(sdp: String) {
+        val payload = JSObject().also {
+            it.put("type", "offer")
+            it.put("sdp", sdp)
+        }
+        notifyListeners("nativeSignalingEvent", payload)
+    }
+
+    fun handleNativeIceFromSignaling(candidate: String, sdpMid: String?, sdpMLineIndex: Int) {
+        val payload = JSObject().also {
+            it.put("type", "remote-ice")
+            it.put("candidate", candidate)
+            it.put("sdpMid", sdpMid)
+            it.put("sdpMLineIndex", sdpMLineIndex)
+        }
+        notifyListeners("nativeSignalingEvent", payload)
     }
 
     // ──────────────────────────────────────────────────────────────
