@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { JSX, ReactNode } from "react";
 import { Maximize, Minimize, Gamepad2, Loader2, LogOut, Clock3, AlertTriangle, Mic, MicOff, Eye, EyeOff, Move, RotateCcw } from "lucide-react";
 import type { StreamDiagnostics } from "../gfn/webrtcClient";
+import { isAndroid } from "../platform/detect";
+import { getStreamerStatus } from "../platform/api";
 
 interface StreamViewProps {
   videoRef: React.Ref<HTMLVideoElement>;
@@ -136,6 +138,13 @@ export function StreamView({
   const [showHints, setShowHints] = useState(true);
   const [showSessionClock, setShowSessionClock] = useState(false);
   const [statsCollapsed, setStatsCollapsed] = useState(false);
+  const [streamerStatus, setStreamerStatus] = useState<{
+    nativeStreamerAvailable: boolean;
+    nativePeerConnectionActive: boolean;
+    videoRendererAttached: boolean;
+    webRtcLibrary: string;
+    decoderType: string;
+  } | null>(null);
 
   // Microphone state
   const micState = stats.micState ?? "uninitialized";
@@ -158,6 +167,23 @@ export function StreamView({
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isAndroid()) return;
+    const pollStreamerStatus = async () => {
+      try {
+        const status = await getStreamerStatus();
+        setStreamerStatus(status);
+      } catch {
+        // Native streamer not available
+      }
+    };
+    pollStreamerStatus();
+    const interval = window.setInterval(() => {
+      void pollStreamerStatus();
+    }, 2000);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -318,6 +344,18 @@ export function StreamView({
             {streamWarning.message}
             {warningSeconds ? ` · ${warningSeconds} left` : ""}
           </span>
+        </div>
+      )}
+
+
+      {streamerStatus && (
+        <div className="sv-native-debug">
+          <span style={{ color: streamerStatus.nativePeerConnectionActive ? "var(--success)" : "var(--error)" }}>
+            {streamerStatus.nativePeerConnectionActive ? "🟢 Native WebRTC Active" : "🔴 WebView WebRTC"}
+          </span>
+          <div>Library: {streamerStatus.webRtcLibrary}</div>
+          <div>Decoder: {streamerStatus.decoderType}</div>
+          <div>Renderer: {streamerStatus.videoRendererAttached ? "SurfaceViewRenderer" : "HTMLVideoElement"}</div>
         </div>
       )}
 
