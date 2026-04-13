@@ -1238,6 +1238,11 @@ class GfnPlugin : Plugin() {
         }
 
         nativeStreamer?.startWithOffer(sdp, iceServers)
+        
+        activity.runOnUiThread {
+            android.widget.Toast.makeText(context, "[NATIVE] Hardware-Accelerated Streamer Linked!", android.widget.Toast.LENGTH_LONG).show()
+        }
+
         call.resolve()
     }
 
