@@ -102,18 +102,15 @@ body.native-streamer-active .sv,
 body.native-streamer-active .sv-empty,
 body.native-streamer-active .sv-empty-grad,
 body.native-streamer-active .app-stream,
-body.native-streamer-active .main-content {
+body.native-streamer-active .main-content,
+body.native-streamer-active .app-container {
   background: transparent !important;
 }
 
-/* Hide the empty placeholder completely when streaming natively */
-body.native-streamer-active .sv-empty-grad {
-  display: none !important;
-}
-
-/* Ensure the video container itself doesn't have an opaque background */
+/* Hide the empty placeholder and browser video completely when streaming natively */
+body.native-streamer-active .sv-empty-grad,
 body.native-streamer-active .sv-video {
-  opacity: 0;
+  display: none !important;
 }
 
 /* ---------- Scrollbar ---------- */

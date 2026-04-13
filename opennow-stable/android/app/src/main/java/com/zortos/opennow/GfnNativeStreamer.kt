@@ -28,7 +28,7 @@ class GfnNativeStreamer(
     private var dataChannelInput2: DataChannel? = null
 
     fun sendNativeInput(channelName: String, data: ByteArray) {
-        val channel = if (channelName == "input_1") dataChannelInput1 else dataChannelInput2
+        val channel = if (channelName == "input_channel_v1" || channelName == "input_1") dataChannelInput1 else dataChannelInput2
         if (channel?.state() == DataChannel.State.OPEN) {
             val buffer = DataChannel.Buffer(java.nio.ByteBuffer.wrap(data), true)
             channel.send(buffer)
@@ -152,27 +152,30 @@ class GfnNativeStreamer(
             val input1Init = DataChannel.Init().apply {
                 ordered = true
             }
-            dataChannelInput1 = peerConnection?.createDataChannel("input_1", input1Init)
+            dataChannelInput1 = peerConnection?.createDataChannel("input_channel_v1", input1Init)
             dataChannelInput1?.registerObserver(object : DataChannel.Observer {
                 override fun onBufferedAmountChange(p0: Long) {}
                 override fun onStateChange() {
-                    if (dataChannelInput1?.state() == DataChannel.State.OPEN) {
-                        Log.i(TAG, "DataChannel input_1 OPEN, sending protocol init [0x02]")
-                        val buffer = java.nio.ByteBuffer.allocate(1).put(2.toByte())
-                        buffer.flip()
-                        dataChannelInput1?.send(DataChannel.Buffer(buffer, true))
-                    }
+                    Log.i(TAG, "DataChannel input_channel_v1 state: ${dataChannelInput1?.state()}")
                 }
                 override fun onMessage(p0: DataChannel.Buffer?) {
                     p0?.data?.let {
                         val arr = ByteArray(it.remaining())
-                        it.get(arr)
-                        if (arr.size == 1 && arr[0] == 6.toByte()) {
-                            Log.i(TAG, "DataChannel input_1 received [0x06], input is ready!")
-                            (context as? android.app.Activity)?.runOnUiThread {
-                                android.widget.Toast.makeText(context, "Input Ready!", android.widget.Toast.LENGTH_SHORT).show()
+                        val bytes = it.duplicate()
+                        bytes.get(arr)
+                        
+                        // Check for GFN Handshake header (0x0e 0x02 -> 0x020e = 526)
+                        if (arr.size >= 2) {
+                            val firstByte = arr[0].toInt() and 0xFF
+                            val secondByte = arr[1].toInt() and 0xFF
+                            
+                            if (firstByte == 0x0e && secondByte == 0x02) {
+                                Log.i(TAG, "GFN Handshake detected! input_channel_v1 is ready.")
+                                (context as? android.app.Activity)?.runOnUiThread {
+                                    android.widget.Toast.makeText(context, "Input Ready (v2)!", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                onEvent("onInputReady", JSObject())
                             }
-                            onEvent("onInputReady", JSObject())
                         }
                     }
                 }
@@ -182,7 +185,7 @@ class GfnNativeStreamer(
                 ordered = false
                 maxRetransmits = 0
             }
-            dataChannelInput2 = peerConnection?.createDataChannel("input_2", input2Init)
+            dataChannelInput2 = peerConnection?.createDataChannel("input_channel_partially_reliable", input2Init)
 
             // Set Remote Description (NVIDIA Offer)
             val remoteSdp = SessionDescription(SessionDescription.Type.OFFER, sdp)
