@@ -2481,6 +2481,8 @@ export class GfnWebRtcClient {
           this.log("Native input ready received");
           this.inputReady = true;
           this.diagnostics.inputReady = true;
+          this.diagnostics.connectionState = "connected";
+          this.diagnostics.resolution = "Native Stream";
           this.installInputCapture(this.options.videoElement);
           this.setupInputHeartbeat();
           this.setupGamepadPolling();

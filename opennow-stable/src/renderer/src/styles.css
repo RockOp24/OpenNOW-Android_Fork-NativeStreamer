@@ -98,6 +98,24 @@ body.native-streamer-active #root {
   background: transparent !important;
 }
 
+body.native-streamer-active .sv,
+body.native-streamer-active .sv-empty,
+body.native-streamer-active .sv-empty-grad,
+body.native-streamer-active .app-stream,
+body.native-streamer-active .main-content {
+  background: transparent !important;
+}
+
+/* Hide the empty placeholder completely when streaming natively */
+body.native-streamer-active .sv-empty-grad {
+  display: none !important;
+}
+
+/* Ensure the video container itself doesn't have an opaque background */
+body.native-streamer-active .sv-video {
+  opacity: 0;
+}
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
