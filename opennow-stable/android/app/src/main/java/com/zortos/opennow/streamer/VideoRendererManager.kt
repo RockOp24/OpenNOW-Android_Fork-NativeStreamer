@@ -64,7 +64,7 @@ class VideoRendererManager(private val activity: Activity) {
     }
 
     fun onResume() {
-        renderer?.resumeVideo()
+        renderer?.onResume()
     }
 
     fun release() {

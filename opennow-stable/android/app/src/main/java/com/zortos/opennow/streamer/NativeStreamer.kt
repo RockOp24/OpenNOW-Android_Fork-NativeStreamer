@@ -7,13 +7,12 @@ import org.webrtc.MediaConstraints
 import org.webrtc.MediaStreamTrack
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
-import org.webrtc.RtpParameters
 import org.webrtc.RtpReceiver
 import org.webrtc.RtpTransceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.SurfaceViewRenderer
-import org.webrtc.audio.AudioSource
+import org.webrtc.AudioSource
 import org.webrtc.AudioTrack
 import org.webrtc.VideoSink
 import org.webrtc.VideoTrack
@@ -136,7 +135,6 @@ class NativeStreamer(private val context: Context) {
                     answer.type,
                     preferVideoCodecs(answer.description, listOf("AV1", "H265", "H264"))
                 )
-                applyCodecPreferences(pc)
                 pc.setLocalDescription(object : SdpObserver {
                     override fun onCreateSuccess(sessionDescription: SessionDescription?) = Unit
                     override fun onSetSuccess() = callback(preferred, null)
@@ -205,20 +203,5 @@ class NativeStreamer(private val context: Context) {
             break
         }
         return lines.joinToString("\r\n")
-    }
-
-    private fun applyCodecPreferences(pc: PeerConnection) {
-        for (transceiver in pc.transceivers) {
-            if (transceiver.mediaType != MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO) continue
-            val codecs = transceiver.receiver.parameters.codecs ?: continue
-            val preferred = mutableListOf<RtpParameters.Codec>()
-            preferred += codecs.filter { it.name.contains("AV1", ignoreCase = true) }
-            preferred += codecs.filter { it.name.contains("H265", ignoreCase = true) || it.name.contains("HEVC", ignoreCase = true) }
-            preferred += codecs.filter { it.name.contains("H264", ignoreCase = true) }
-            preferred += codecs.filterNot { codec -> preferred.any { it.payloadType == codec.payloadType } }
-            if (preferred.isNotEmpty()) {
-                transceiver.setCodecPreferences(preferred)
-            }
-        }
     }
 }

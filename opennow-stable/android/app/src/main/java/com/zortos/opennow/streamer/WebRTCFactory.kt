@@ -1,14 +1,14 @@
 package com.zortos.opennow.streamer
 
 import android.content.Context
-import org.webrtc.AudioDeviceModule
 import org.webrtc.BuiltinAudioDecoderFactoryFactory
 import org.webrtc.BuiltinAudioEncoderFactoryFactory
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
-import org.webrtc.JavaAudioDeviceModule
 import org.webrtc.PeerConnectionFactory
+import org.webrtc.audio.AudioDeviceModule
+import org.webrtc.audio.JavaAudioDeviceModule
 
 object WebRTCFactory {
     @Volatile
