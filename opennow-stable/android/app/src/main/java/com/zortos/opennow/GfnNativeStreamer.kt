@@ -3,10 +3,10 @@ package com.zortos.opennow
 import android.content.Context
 import android.util.Log
 import com.getcapacitor.JSObject
-import org.webrtc.*
-import org.webrtc.PeerConnection.IceConnectionState
-import org.webrtc.PeerConnection.PeerConnectionState
-import org.webrtc.audio.JavaAudioDeviceModule
+import livekit.org.webrtc.*
+import livekit.org.webrtc.PeerConnection.IceConnectionState
+import livekit.org.webrtc.PeerConnection.PeerConnectionState
+import livekit.org.webrtc.audio.JavaAudioDeviceModule
 import java.util.concurrent.Executors
 
 /**
