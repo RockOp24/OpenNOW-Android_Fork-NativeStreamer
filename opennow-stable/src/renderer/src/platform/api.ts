@@ -160,16 +160,31 @@ function buildCapacitorApi(): OpenNowApi {
       await callNativePlugin("initializeNativeStreamer");
       // Bridge Capacitor events to window events for webrtcClient.ts
       const cap = (window as any).Capacitor;
-      if (cap?.Plugins?.GfnPlugin) {
-        cap.Plugins.GfnPlugin.addListener('onAnswerCreated', (data: any) => {
-          console.log("[Bridge] onAnswerCreated received from Native:", data);
-          window.dispatchEvent(new CustomEvent('onAnswerCreated', { detail: data }));
-        });
-        cap.Plugins.GfnPlugin.addListener('onLocalIceCandidate', (data: any) => {
-          console.log("[Bridge] onLocalIceCandidate received from Native:", data);
-          window.dispatchEvent(new CustomEvent('onLocalIceCandidate', { detail: data }));
-        });
-      }
+
+      const addListener = (eventName: string, handler: (data: any) => void) => {
+        if (cap?.addListener) {
+           // Capacitor 6+ or direct bridge
+           cap.addListener('GfnPlugin', eventName, handler);
+        } else if (cap?.Plugins?.GfnPlugin?.addListener) {
+           // Capacitor 4/5 style
+           cap.Plugins.GfnPlugin.addListener(eventName, handler);
+        } else {
+           console.error("[Bridge] Cannot find Capacitor bridge to attach listener for " + eventName);
+        }
+      };
+
+      addListener('onAnswerCreated', (data: any) => {
+        console.log("[Bridge] onAnswerCreated received from Native:", data);
+        window.dispatchEvent(new CustomEvent('onAnswerCreated', { detail: data }));
+      });
+      addListener('onLocalIceCandidate', (data: any) => {
+        console.log("[Bridge] onLocalIceCandidate received from Native:", data);
+        window.dispatchEvent(new CustomEvent('onLocalIceCandidate', { detail: data }));
+      });
+      addListener('onInputReady', (data: any) => {
+        console.log("[Bridge] onInputReady received from Native:", data);
+        window.dispatchEvent(new CustomEvent('onInputReady', { detail: data }));
+      });
     },
     startNativeStreamer: (sdp: string, iceServers: any[]) => callNativePlugin("startNativeStreamer", { sdp, iceServers }),
     addNativeIceCandidate: (candidate: any) => callNativePlugin("addNativeIceCandidate", candidate),

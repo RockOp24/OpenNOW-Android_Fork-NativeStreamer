@@ -2477,16 +2477,29 @@ export class GfnWebRtcClient {
           }
         };
 
+        const onNativeInputReady = () => {
+          this.log("Native input ready received");
+          this.inputReady = true;
+          this.diagnostics.inputReady = true;
+          this.installInputCapture(this.options.videoElement);
+          this.setupInputHeartbeat();
+          this.setupGamepadPolling();
+          this.emitStats();
+        };
+
         (window as any).addEventListener("onAnswerCreated", onNativeAnswer);
         (window as any).addEventListener("onLocalIceCandidate", onNativeIce);
+        (window as any).addEventListener("onInputReady", onNativeInputReady);
         
         this.inputCleanup.push(() => {
           (window as any).removeEventListener("onAnswerCreated", onNativeAnswer);
           (window as any).removeEventListener("onLocalIceCandidate", onNativeIce);
+          (window as any).removeEventListener("onInputReady", onNativeInputReady);
           void getPlatformApi().stopNativeStreamer();
         });
 
-        await getPlatformApi().startNativeStreamer(offerSdp, session.iceServers);
+        const fixedOfferSdp = fixServerIp(offerSdp, session.serverIp);
+        await getPlatformApi().startNativeStreamer(fixedOfferSdp, session.iceServers);
         this.log("Native streamer started successfully");
         return;
       } catch (err) {
@@ -2839,6 +2852,11 @@ export class GfnWebRtcClient {
       usernameFragment: candidate.usernameFragment ?? undefined,
     };
 
+    if (this.useNativeStreamer) {
+      await getPlatformApi().addNativeIceCandidate(init);
+      return;
+    }
+
     if (!this.pc || !this.pc.remoteDescription) {
       this.queuedCandidates.push(init);
       return;
@@ -2848,6 +2866,9 @@ export class GfnWebRtcClient {
   }
 
   isStreaming(): boolean {
+    if (this.useNativeStreamer) {
+      return this.diagnostics.inputReady;
+    }
     return this.pc !== null && (this.pc.connectionState === "connected" || this.pc.connectionState === "connecting");
   }
 

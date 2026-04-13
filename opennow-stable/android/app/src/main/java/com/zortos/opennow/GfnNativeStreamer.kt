@@ -151,16 +151,36 @@ class GfnNativeStreamer(
             // Create DataChannels before setting remote description (matches JS createDataChannels)
             val input1Init = DataChannel.Init().apply {
                 ordered = true
-                negotiated = true
-                id = 0
             }
             dataChannelInput1 = peerConnection?.createDataChannel("input_1", input1Init)
+            dataChannelInput1?.registerObserver(object : DataChannel.Observer {
+                override fun onBufferedAmountChange(p0: Long) {}
+                override fun onStateChange() {
+                    if (dataChannelInput1?.state() == DataChannel.State.OPEN) {
+                        Log.i(TAG, "DataChannel input_1 OPEN, sending protocol init [0x02]")
+                        val buffer = java.nio.ByteBuffer.allocate(1).put(2.toByte())
+                        buffer.flip()
+                        dataChannelInput1?.send(DataChannel.Buffer(buffer, true))
+                    }
+                }
+                override fun onMessage(p0: DataChannel.Buffer?) {
+                    p0?.data?.let {
+                        val arr = ByteArray(it.remaining())
+                        it.get(arr)
+                        if (arr.size == 1 && arr[0] == 6.toByte()) {
+                            Log.i(TAG, "DataChannel input_1 received [0x06], input is ready!")
+                            (context as? android.app.Activity)?.runOnUiThread {
+                                android.widget.Toast.makeText(context, "Input Ready!", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            onEvent("onInputReady", JSObject())
+                        }
+                    }
+                }
+            })
             
             val input2Init = DataChannel.Init().apply {
                 ordered = false
                 maxRetransmits = 0
-                negotiated = true
-                id = 1
             }
             dataChannelInput2 = peerConnection?.createDataChannel("input_2", input2Init)
 
