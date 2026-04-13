@@ -1223,7 +1223,7 @@ class GfnPlugin : Plugin() {
         val sdp = call.getString("sdp") ?: run { call.reject("Missing sdp"); return }
         val iceServersJson = call.getArray("iceServers") ?: com.getcapacitor.JSArray()
         
-        val iceServers = mutableListOf<org.webrtc.PeerConnection.IceServer>()
+        val iceServers = mutableListOf<livekit.org.webrtc.PeerConnection.IceServer>()
         for (i in 0 until iceServersJson.length()) {
             val obj = iceServersJson.getJSONObject(i)
             val urls = obj.getJSONArray("urls")
@@ -1231,7 +1231,7 @@ class GfnPlugin : Plugin() {
             for (j in 0 until urls.length()) {
                 urlList.add(urls.getString(j))
             }
-            val builder = org.webrtc.PeerConnection.IceServer.builder(urlList)
+            val builder = livekit.org.webrtc.PeerConnection.IceServer.builder(urlList)
             if (obj.has("username")) builder.setUsername(obj.getString("username"))
             if (obj.has("credential")) builder.setPassword(obj.getString("credential"))
             iceServers.add(builder.createIceServer())
@@ -1247,7 +1247,7 @@ class GfnPlugin : Plugin() {
         val sdpMid = call.getString("sdpMid")
         val sdpMLineIndex = call.getInt("sdpMLineIndex") ?: 0
         
-        val candidate = org.webrtc.IceCandidate(sdpMid, sdpMLineIndex, sdp)
+        val candidate = livekit.org.webrtc.IceCandidate(sdpMid, sdpMLineIndex, sdp)
         nativeStreamer?.addRemoteIceCandidate(candidate)
         call.resolve()
     }
