@@ -53,11 +53,11 @@ class MainActivity : BridgeActivity() {
     /** Toggles the visibility of the native surface and makes WebView transparent. */
     fun setNativeMode(enabled: Boolean) {
         runOnUiThread {
-            nativeSurface?.visibility = if (enabled) SurfaceView.VISIBLE else SurfaceView.GONE
+            nativeSurface?.visibility = if (enabled) android.view.SurfaceView.VISIBLE else android.view.SurfaceView.GONE
             if (enabled) {
-                bridge.webView.backgroundColor = Color.TRANSPARENT
+                bridge.webView.setBackgroundColor(Color.TRANSPARENT)
             } else {
-                bridge.webView.backgroundColor = Color.parseColor("#121212") // Default app background
+                bridge.webView.setBackgroundColor(Color.parseColor("#121212")) // Default app background
             }
         }
     }
