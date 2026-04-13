@@ -44,6 +44,20 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Export JAVA_HOME
+        shell: bash
+        run: |
+          if [ -n "${JAVA_HOME_21_X64:-}" ]; then
+            echo "JAVA_HOME=${JAVA_HOME_21_X64}" >> "$GITHUB_ENV"
+            echo "${JAVA_HOME_21_X64}/bin" >> "$GITHUB_PATH"
+          else
+            echo "JAVA_HOME=${JAVA_HOME}" >> "$GITHUB_ENV"
+            echo "${JAVA_HOME}/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Verify Java version
+        run: java -version
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
