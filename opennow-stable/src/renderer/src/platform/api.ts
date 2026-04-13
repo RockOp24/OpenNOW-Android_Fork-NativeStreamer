@@ -160,6 +160,7 @@ function buildCapacitorApi(): OpenNowApi {
     startNativeStreamer: (sdp: string, iceServers: any[]) => callNativePlugin("startNativeStreamer", { sdp, iceServers }),
     addNativeIceCandidate: (candidate: any) => callNativePlugin("addNativeIceCandidate", candidate),
     stopNativeStreamer: () => callNativePlugin("stopNativeStreamer"),
+    sendNativeInput: (channel: string, dataB64: string) => callNativePlugin("sendNativeInput", { channel, data: dataB64 }),
 
     getSettings: () =>
       withTimeout(

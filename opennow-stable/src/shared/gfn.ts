@@ -339,6 +339,7 @@ export interface OpenNowApi {
   startNativeStreamer(sdp: string, iceServers: IceServer[]): Promise<void>;
   addNativeIceCandidate(candidate: IceCandidatePayload): Promise<void>;
   stopNativeStreamer(): Promise<void>;
+  sendNativeInput(channel: string, dataB64: string): Promise<void>;
   getSettings(): Promise<Settings>;
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
   resetSettings(): Promise<Settings>;

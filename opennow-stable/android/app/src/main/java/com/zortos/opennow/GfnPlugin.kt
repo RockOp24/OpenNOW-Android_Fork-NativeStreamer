@@ -1253,6 +1253,20 @@ class GfnPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun sendNativeInput(call: PluginCall) {
+        val channel = call.getString("channel") ?: run { call.reject("Missing channel"); return }
+        val dataB64 = call.getString("data") ?: run { call.reject("Missing data"); return }
+        
+        try {
+            val bytes = android.util.Base64.decode(dataB64, android.util.Base64.NO_WRAP)
+            nativeStreamer?.sendNativeInput(channel, bytes)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("Failed to parse base64 data", e)
+        }
+    }
+
+    @PluginMethod
     fun stopNativeStreamer(call: PluginCall) {
         nativeStreamer?.stop()
         nativeStreamer = null

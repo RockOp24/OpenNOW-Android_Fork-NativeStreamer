@@ -445,6 +445,15 @@ export class GfnWebRtcClient {
   private pendingMouseDy = 0;
   private inputCleanup: Array<() => void> = [];
   private queuedCandidates: RTCIceCandidateInit[] = [];
+  private useNativeStreamer = false;
+
+  private uint8ToBase64(bytes: Uint8Array): string {
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
 
   // Input mode: auto-switches between mouse+keyboard and gamepad
   // When gamepad has activity, mouse/keyboard are suppressed (and vice versa)
@@ -2421,6 +2430,7 @@ export class GfnWebRtcClient {
   async handleOffer(offerSdp: string, session: SessionInfo, settings: OfferSettings): Promise<void> {
     const appSettings = await getPlatformApi().getSettings();
     const useNative = appSettings.useNativeStreamer && getPlatform() === "capacitor";
+    this.useNativeStreamer = useNative;
 
     if (useNative) {
       this.log("=== NATIVE handleOffer START ===");

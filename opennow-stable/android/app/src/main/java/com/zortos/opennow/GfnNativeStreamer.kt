@@ -24,7 +24,18 @@ class GfnNativeStreamer(
 
     private var factory: PeerConnectionFactory? = null
     private var peerConnection: PeerConnection? = null
-    private var dataChannel: DataChannel? = null
+    private var dataChannelInput1: DataChannel? = null
+    private var dataChannelInput2: DataChannel? = null
+
+    fun sendNativeInput(channelName: String, data: ByteArray) {
+        val channel = if (channelName == "input_1") dataChannelInput1 else dataChannelInput2
+        if (channel?.state() == DataChannel.State.OPEN) {
+            val buffer = DataChannel.Buffer(java.nio.ByteBuffer.wrap(data), true)
+            channel.send(buffer)
+        } else {
+            Log.w(TAG, "Cannot send input: DataChannel $channelName is not OPEN (state: ${channel?.state()})")
+        }
+    }
 
     init {
         executor.execute {
@@ -113,9 +124,7 @@ class GfnNativeStreamer(
                 override fun onRemoveStream(stream: MediaStream?) {}
                 override fun onDataChannel(channel: DataChannel?) {
                     Log.i(TAG, "DataChannel received: ${channel?.label()}")
-                    if (channel?.label() == "input_1") {
-                        dataChannel = channel
-                    }
+                    // Control channel might be received here, but input channels are created locally
                 }
 
                 override fun onRenegotiationNeeded() {}
@@ -128,6 +137,22 @@ class GfnNativeStreamer(
                     }
                 }
             })
+
+            // Create DataChannels before setting remote description (matches JS createDataChannels)
+            val input1Init = DataChannel.Init().apply {
+                ordered = true
+                negotiated = true
+                id = 0
+            }
+            dataChannelInput1 = peerConnection?.createDataChannel("input_1", input1Init)
+            
+            val input2Init = DataChannel.Init().apply {
+                ordered = false
+                maxRetransmits = 0
+                negotiated = true
+                id = 1
+            }
+            dataChannelInput2 = peerConnection?.createDataChannel("input_2", input2Init)
 
             // Set Remote Description (NVIDIA Offer)
             val remoteSdp = SessionDescription(SessionDescription.Type.OFFER, sdp)
@@ -181,7 +206,8 @@ class GfnNativeStreamer(
 
     fun stop() {
         executor.execute {
-            dataChannel?.close()
+            dataChannelInput1?.close()
+            dataChannelInput2?.close()
             peerConnection?.close()
             factory?.dispose()
             Log.i(TAG, "Streamer stopped and disposed")
